@@ -12,16 +12,19 @@ public class SlotCollector {
 
 	private final static Logger LOGGER = Logger.getGlobal();
 
-	public SlotCollector(File rootDir) {
+	public SlotCollector(File rootDir, boolean upgrade) {
 		PresenterCollector presenterCollector = new PresenterCollector();
 		processDir(rootDir, presenterCollector);
 		Set<String> allPresenters = presenterCollector.getPresenters();
 		LOGGER.info("Found the following Presenter Classes:\n\n" + allPresenters);
 		
-		ContentSlotRewriter slotFinder = new ContentSlotRewriter(allPresenters);
-		processDir(rootDir, slotFinder);
+		ContentSlotRewriter contentSlotRewriter = new ContentSlotRewriter(allPresenters, upgrade);
+		processDir(rootDir, contentSlotRewriter);
 		
-		ObjectSlotRewriter objectSlotRewriter = new ObjectSlotRewriter(slotFinder.getSlotNames());
+		contentSlotRewriter.startSecondRun();
+		processDir(rootDir, contentSlotRewriter);
+		
+		ObjectSlotRewriter objectSlotRewriter = new ObjectSlotRewriter(contentSlotRewriter.getSlotNames(), upgrade);
 		processDir(rootDir, objectSlotRewriter);
 		
 	}

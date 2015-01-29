@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -12,29 +11,22 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 
 import com.github.javaparser.ASTHelper;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
-import com.github.javaparser.ast.expr.LambdaExpr;
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.MethodReferenceExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.QualifiedNameExpr;
 import com.github.javaparser.ast.expr.SuperExpr;
-import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.visitor.ModifierVisitorAdapter;
+import com.github.javaparser.ast.visitor.GenericVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitor;
 
 public class ContentSlotRewriter extends AbstractReWriter {
 	private final static Logger LOGGER = Logger.getGlobal();
@@ -45,8 +37,16 @@ public class ContentSlotRewriter extends AbstractReWriter {
 
 	private final Map<String, Set<String>> slotNames = new HashMap<>();
 
-	public ContentSlotRewriter(Set<String> allPresenters) {
+	// presenters that should be rechecked.
+	private final Set<String> secondRun = new HashSet<>();
+
+	private boolean onSecondRun = false;
+
+	private boolean upgrade;
+
+	public ContentSlotRewriter(Set<String> allPresenters, boolean upgrade) {
 		this.allPresenters = allPresenters;
+		this.upgrade = upgrade;
 	}
 
 	private static Set<String> getSlotMethodNames() {
@@ -96,16 +96,20 @@ public class ContentSlotRewriter extends AbstractReWriter {
 								scope = ((MethodCallExpr) scope).getScope();
 							}
 							if (!(scope instanceof SuperExpr)) {
-								if (askUser(mExpr.toString(), slotName.toString())) {
-									if (slotName instanceof NameExpr) {
-										addSlotName(enclosingClassName, (NameExpr) slotName);
-									} else if (slotName instanceof FieldAccessExpr) {
-										FieldAccessExpr fieldSn = (FieldAccessExpr) slotName;
-										if (fieldSn.getScope() != null) {
-											addSlotName(getFullyQualifiedName(((NameExpr) fieldSn.getScope()).getName()), ((FieldAccessExpr) slotName).getFieldExpr());
-										}
+								if (onSecondRun) {
+									if (askUser(mExpr.toString(), slotName.toString())) {
+										if (slotName instanceof NameExpr) {
+											addSlotName(enclosingClassName, (NameExpr) slotName);
+										} else if (slotName instanceof FieldAccessExpr) {
+											FieldAccessExpr fieldSn = (FieldAccessExpr) slotName;
+											if (fieldSn.getScope() != null) {
+												addSlotName(getFullyQualifiedName(((NameExpr) fieldSn.getScope()).getName()), ((FieldAccessExpr) slotName).getFieldExpr());
+											}
 
+										}
 									}
+								} else {
+									secondRun.add(getEnclosingClassName());
 								}
 							}
 						}
@@ -114,11 +118,24 @@ public class ContentSlotRewriter extends AbstractReWriter {
 
 			}
 
-		} else if (node instanceof AnnotationExpr) {
+		} else if (upgrade && (node instanceof AnnotationExpr)) {
 			AnnotationExpr anno = (AnnotationExpr) node;
 			if (isFullyQualifiedMatch(anno.getName(), "com.gwtplatform.mvp.client.annotations.ContentSlot")) {
 				rewriteContentSlot(anno.getParentNode());
 			}
+		} else if (!upgrade && (node instanceof FieldDeclaration)) {
+			FieldDeclaration fDec = (FieldDeclaration) node;
+			if (fDec.getType() instanceof ReferenceType) {
+				ReferenceType rt = (ReferenceType) fDec.getType();
+				if (rt.getType() instanceof ClassOrInterfaceType) {
+					ClassOrInterfaceType coi = (ClassOrInterfaceType) rt.getType();
+					if (getFullyQualifiedName(coi.getName()).contains("com.gwtplatform.mvp.client.presenter.slots.ContentSlot")) {
+						rewriteContentSlot(node);	
+					}
+				}
+			}
+			
+			
 		}
 		for (Node child : node.getChildrenNodes()) {
 			processNode(child);
@@ -126,10 +143,14 @@ public class ContentSlotRewriter extends AbstractReWriter {
 
 	}
 
+	public void startSecondRun() {
+		onSecondRun = true;
+	}
+
 	private boolean askUser(String statement, String slotName) {
-	
-		return JOptionPane.showConfirmDialog(null, "In: " + statement + "\n\n Is " + slotName + " a slot?", "In: " + statement + "\n\n Is " + slotName + " a slot?", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
-		
+
+		return JOptionPane.showConfirmDialog(null, "In " + statement + "\n\n Is " + slotName + " a slot?", "In " + statement + "\n\n Is " + slotName + " a slot?", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+
 	}
 
 	private boolean doesSlotNameExist(Set<String> fullyQualifiedNames, NameExpr fieldExpr) {
@@ -160,9 +181,6 @@ public class ContentSlotRewriter extends AbstractReWriter {
 
 	}
 
-	
-
-
 	private boolean isFullyQualifiedMatch(NameExpr nameExpr, String fullyQualified) {
 		String name = nameExpr.toString();
 		return getFullyQualifiedName(name).contains(fullyQualified);
@@ -171,14 +189,37 @@ public class ContentSlotRewriter extends AbstractReWriter {
 	private void rewriteContentSlot(Node contentSlotNode) {
 		if (contentSlotNode instanceof FieldDeclaration) {
 			FieldDeclaration fDec = (FieldDeclaration) contentSlotNode;
-			Iterator<AnnotationExpr> it = fDec.getAnnotations().iterator();
-			while (it.hasNext()) {
-				if (isFullyQualifiedMatch(it.next().getName(), "com.gwtplatform.mvp.client.annotations.ContentSlot")) {
-					it.remove();
-					markChanged();
+			if (upgrade) {
+				Iterator<AnnotationExpr> it = fDec.getAnnotations().iterator();
+				while (it.hasNext()) {
+					if (isFullyQualifiedMatch(it.next().getName(), "com.gwtplatform.mvp.client.annotations.ContentSlot")) {
+						it.remove();
+						markChanged();
+					}
+				}
+			} else {
+				removeImport("com.gwtplatform.mvp.client.presenter.slots.ContentSlot");
+				addImports("com.gwtplatform.mvp.client.annotations.ContentSlot", "com.google.gwt.event.shared.GwtEvent.Type");
+				if (fDec.getAnnotations() == null) {
+					fDec.setAnnotations(new ArrayList<AnnotationExpr>());
+				}
+				fDec.getAnnotations().add(new MarkerAnnotationExpr(ASTHelper.createNameExpr("ContentSlot")));
+				
+				Type t = fDec.getType();
+				ReferenceType nt = ASTHelper.createReferenceType("Type<RevealContentHandler<?>>", 0);
+				if (t instanceof ReferenceType) {
+					ReferenceType rt = (ReferenceType) t;
+					rt.setType(nt);
+				}
+				for (VariableDeclarator v : fDec.getVariables()) {
+					Expression scope = null;
+					if (v.getInit() instanceof ObjectCreationExpr) {
+						scope = ((ObjectCreationExpr) v.getInit()).getScope();
+					}
+					v.setInit(new ObjectCreationExpr(scope, new ClassOrInterfaceType("Type<RevealContentHandler<?>>"), null));
 				}
 			}
-			if (hasChanged()) {
+			if (upgrade && hasChanged()) {
 				removeImport("com.gwtplatform.mvp.client.annotations.ContentSlot");
 				addImports("com.gwtplatform.mvp.client.presenter.slots.ContentSlot", "com.gwtplatform.mvp.client.Presenter");
 				Type t = fDec.getType();
@@ -199,13 +240,14 @@ public class ContentSlotRewriter extends AbstractReWriter {
 
 	}
 
-
-
-	
-
 	@Override
 	void processCompilationUnit() {
-		processNode(getCompilationUnit());
+		if (!onSecondRun || (!secondRun.isEmpty() && secondRun.contains(getEnclosingClassName()))) {
+			processNode(getCompilationUnit());
+			if (onSecondRun) {
+				secondRun.remove(getCompilationUnit());
+			}
+		}
 	}
 
 	public Map<String, Set<String>> getSlotNames() {

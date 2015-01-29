@@ -21,12 +21,13 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.QualifiedNameExpr;
 
 public abstract class AbstractReWriter {
-	
+
 	private final static Logger LOGGER = Logger.getGlobal();
 	private CompilationUnit compilationUnit;
 	private List<ImportDeclaration> imports;
 	private boolean hasChanged;
-	
+	private String enclosingClassName;
+
 	public final void processJavaFile(File file) {
 		CompilationUnit cu;
 		try {
@@ -39,7 +40,7 @@ public abstract class AbstractReWriter {
 			LOGGER.severe(e.getMessage());
 			e.printStackTrace();
 		}
-		
+
 	}
 
 	private void reWrite(File file, CompilationUnit cu) {
@@ -49,19 +50,20 @@ public abstract class AbstractReWriter {
 			LOGGER.severe(e.getMessage());
 			e.printStackTrace();
 		}
-		
+
 	}
-	
+
 	abstract void processCompilationUnit();
-	
+
 	final boolean processCompilationUnit(CompilationUnit cu) {
+		this.enclosingClassName = null;
 		this.hasChanged = false;
 		this.compilationUnit = cu;
 		this.imports = compilationUnit.getImports();
 		processCompilationUnit();
 		return hasChanged();
 	};
-	
+
 	protected void addImports(String... names) {
 		for (String name : names) {
 			removeImport(name);
@@ -76,7 +78,7 @@ public abstract class AbstractReWriter {
 		}
 
 	}
-	
+
 	protected Set<String> getFullyQualifiedName(String name) {
 		Set<String> result = new HashSet<>();
 		if (imports != null) {
@@ -111,7 +113,6 @@ public abstract class AbstractReWriter {
 
 	}
 
-
 	protected void removeImport(String name) {
 		if (imports != null) {
 			Iterator<ImportDeclaration> it = imports.iterator();
@@ -124,28 +125,32 @@ public abstract class AbstractReWriter {
 		}
 
 	}
-	
+
 	protected CompilationUnit getCompilationUnit() {
 		return compilationUnit;
 	}
-	
+
 	boolean hasChanged() {
 		return hasChanged;
 	}
-	
+
 	protected void markChanged() {
 		hasChanged = true;
 	}
-	
+
 	protected String getEnclosingClassName() {
-		for (Node node : compilationUnit.getChildrenNodes()) {
-			if (node instanceof ClassOrInterfaceDeclaration) {
-				QualifiedNameExpr packageName = (QualifiedNameExpr) compilationUnit.getPackage().getName();
-				String fqName = packageName.getQualifier() + "." + packageName.getName() + "." + ((ClassOrInterfaceDeclaration) node).getName();
-				return fqName;
+		if (enclosingClassName == null) {
+
+			for (Node node : compilationUnit.getChildrenNodes()) {
+				if (node instanceof ClassOrInterfaceDeclaration) {
+					QualifiedNameExpr packageName = (QualifiedNameExpr) compilationUnit.getPackage().getName();
+					String fqName = packageName.getQualifier() + "." + packageName.getName() + "." + ((ClassOrInterfaceDeclaration) node).getName();
+					enclosingClassName = fqName;
+					break;
+				}
 			}
 		}
-		return null;
+		return enclosingClassName;
 	}
 
 }

@@ -20,8 +20,11 @@ public class ObjectSlotRewriter extends AbstractReWriter{
 	
 	private Map<String, Set<String>> slotNames;
 
-	public ObjectSlotRewriter(Map<String, Set<String>> slotNames) {
+	private boolean upgrade;
+
+	public ObjectSlotRewriter(Map<String, Set<String>> slotNames, boolean upgrade) {
 		this.slotNames = slotNames;
+		this.upgrade = upgrade;
 	}
 
 	@Override
@@ -36,9 +39,11 @@ public class ObjectSlotRewriter extends AbstractReWriter{
 			FieldDeclaration fDec = (FieldDeclaration) node;
 			for (VariableDeclarator v: fDec.getVariables()) {
 				if (slotNames.get(getEnclosingClassName()).contains(v.getId().getName())) {
-					addImports("com.gwtplatform.mvp.client.presenter.slots.Slot");
+					if (upgrade) {
+						addImports("com.gwtplatform.mvp.client.presenter.slots.Slot","com.gwtplatform.mvp.client.PresenterWidget");
+					}
 					Type t = fDec.getType();
-					ReferenceType nt = ASTHelper.createReferenceType("Slot<PresenterWidget<?>>", 0);
+					ReferenceType nt = ASTHelper.createReferenceType(upgrade ? "Slot<PresenterWidget<?>>" : "Object", 0);
 					if (t instanceof ReferenceType) {
 						ReferenceType rt = (ReferenceType) t;
 						rt.setType(nt);
@@ -47,7 +52,7 @@ public class ObjectSlotRewriter extends AbstractReWriter{
 					if (v.getInit() instanceof ObjectCreationExpr) {
 						scope = ((ObjectCreationExpr) v.getInit()).getScope();
 					}
-					v.setInit(new ObjectCreationExpr(scope, new ClassOrInterfaceType("Slot<PresenterWidget<?>>"), null));
+					v.setInit(new ObjectCreationExpr(scope, new ClassOrInterfaceType(upgrade ? "Slot<PresenterWidget<?>>" : "Object"), null));
 					markChanged();
 				}
 				

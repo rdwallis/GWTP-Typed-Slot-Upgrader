@@ -34,6 +34,8 @@ public class Upgrader extends JPanel {
 	JTextField fileTextField = new JTextField();
 
 	private File selectedDir;
+	
+	private JRadioButton v2;
 
 	public Upgrader() {
 		super(new BorderLayout(10, 10));
@@ -77,7 +79,7 @@ public class Upgrader extends JPanel {
 		runButton.addActionListener(new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
-				new SlotCollector(selectedDir);
+				new SlotCollector(selectedDir, v2.isSelected());
 				
 			}
 		});
@@ -89,7 +91,7 @@ public class Upgrader extends JPanel {
 		JPanel panel = new JPanel();
 		panel.setBorder(new TitledBorder("Choose target version"));
 		
-		 JRadioButton v2 = new JRadioButton("GWTP 2.x");
+		 v2 = new JRadioButton("GWTP 2.x");
 	     JRadioButton v1 = new JRadioButton("GWTP 1.x");
 	     ButtonGroup bG = new ButtonGroup();
 	     
@@ -119,7 +121,9 @@ public class Upgrader extends JPanel {
 			public void actionPerformed(ActionEvent e) {
 				LOGGER.info("Showing file dialog");
 				final JFileChooser fileChooser = new JFileChooser();
+				
 				fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+				//fileChooser.setSelectedFile(Paths.get("c:/ws1/GWTPUpgradeSample/").toFile());
 
 				if (fileChooser.showOpenDialog(Upgrader.this) == JFileChooser.APPROVE_OPTION) {
 					setDirectory(fileChooser.getSelectedFile());
