@@ -120,7 +120,6 @@ public class Upgrader extends JPanel {
 				LOGGER.info("Showing file dialog");
 				final JFileChooser fileChooser = new JFileChooser();
 				fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-				fileChooser.setSelectedFile(Paths.get("c:/ws1/GWTPUpgradeSample/").toFile());
 
 				if (fileChooser.showOpenDialog(Upgrader.this) == JFileChooser.APPROVE_OPTION) {
 					setDirectory(fileChooser.getSelectedFile());
