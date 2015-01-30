@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Insets;
+import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -17,13 +18,17 @@ import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 public class Upgrader extends JPanel {
 	
@@ -33,16 +38,18 @@ public class Upgrader extends JPanel {
 	
 	JTextField fileTextField = new JTextField();
 
-	private File selectedDir;
-	
 	private JRadioButton v2;
+
+	private JProgressBar progressBar;
+	
+	private Label progressLabel;
 
 	public Upgrader() {
 		super(new BorderLayout(10, 10));
 		
 		setPreferredSize(new Dimension(600, 400));
 		
-		initLogger();
+		//initLogger();
 		
         addBackupWarning();
         
@@ -55,8 +62,24 @@ public class Upgrader extends JPanel {
         addOpenDialog(centerPanel);
 		addVersionChoice(centerPanel);
 		addRunButton(centerPanel);
+		addProgressBar();
 		
 		
+		
+	}
+
+	private void addProgressBar() {
+		JPanel panel = new JPanel(new BorderLayout());
+		panel.setBorder(new EmptyBorder(15, 15, 35, 15));
+		progressLabel = new Label();
+		panel.add(progressLabel, BorderLayout.PAGE_START);
+		
+		progressBar = new JProgressBar();
+		
+		panel.add(progressBar, BorderLayout.PAGE_END);
+		
+		
+		add(panel, BorderLayout.PAGE_END);
 		
 	}
 
@@ -71,7 +94,8 @@ public class Upgrader extends JPanel {
 
 	private void addRunButton(JPanel container) {
 		JPanel panel = new JPanel();
-		JButton runButton = new JButton("Convert Project");
+		final JButton runButton = new JButton("Convert Project");
+		runButton.setEnabled(false);
 		runButton.setSize(new Dimension(100, 20));
 		panel.add(runButton);
 		container.add(panel, BorderLayout.PAGE_END);
@@ -79,7 +103,33 @@ public class Upgrader extends JPanel {
 		runButton.addActionListener(new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
-				new SlotCollector(selectedDir, v2.isSelected());
+				File file = new File(fileTextField.getText());
+				if (file.exists() && file.isDirectory()) {
+					new SlotCollector(file, v2.isSelected(), progressBar, progressLabel);
+				} else {
+					JOptionPane.showMessageDialog(null, "Please select a directory");
+				}
+				
+			}
+		});
+		
+		fileTextField.getDocument().addDocumentListener(new DocumentListener() {
+			
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				runButton.setEnabled(!fileTextField.getText().isEmpty());
+				
+			}
+			
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				runButton.setEnabled(!fileTextField.getText().isEmpty());
+				
+			}
+			
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				runButton.setEnabled(!fileTextField.getText().isEmpty());
 				
 			}
 		});
@@ -135,6 +185,7 @@ public class Upgrader extends JPanel {
 		});
 		
 	
+	
 		panel.add(fileTextField, BorderLayout.CENTER);
 		panel.add(openButton, BorderLayout.EAST);
 		
@@ -167,7 +218,6 @@ public class Upgrader extends JPanel {
 	private void setDirectory(File selectedFile) {
 		LOGGER.info("Selected dir: " + selectedFile.getName());
 		fileTextField.setText(selectedFile.getAbsolutePath());
-		this.selectedDir = selectedFile;
 	}
 
 	public static void main(String[] args) {
