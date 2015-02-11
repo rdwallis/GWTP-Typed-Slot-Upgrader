@@ -129,7 +129,7 @@ public class ContentSlotRewriter extends AbstractReWriter {
 				ReferenceType rt = (ReferenceType) fDec.getType();
 				if (rt.getType() instanceof ClassOrInterfaceType) {
 					ClassOrInterfaceType coi = (ClassOrInterfaceType) rt.getType();
-					if (getFullyQualifiedName(coi.getName()).contains("com.gwtplatform.mvp.client.presenter.slots.ContentSlot")) {
+					if (getFullyQualifiedName(coi.getName()).contains("com.gwtplatform.mvp.client.presenter.slots.NestedSlot")) {
 						rewriteContentSlot(node);	
 					}
 				}
@@ -198,7 +198,7 @@ public class ContentSlotRewriter extends AbstractReWriter {
 					}
 				}
 			} else {
-				removeImport("com.gwtplatform.mvp.client.presenter.slots.ContentSlot");
+				removeImport("com.gwtplatform.mvp.client.presenter.slots.NestedSlot");
 				addImports("com.gwtplatform.mvp.client.annotations.ContentSlot", "com.google.gwt.event.shared.GwtEvent.Type");
 				if (fDec.getAnnotations() == null) {
 					fDec.setAnnotations(new ArrayList<AnnotationExpr>());
@@ -221,9 +221,9 @@ public class ContentSlotRewriter extends AbstractReWriter {
 			}
 			if (upgrade && hasChanged()) {
 				removeImport("com.gwtplatform.mvp.client.annotations.ContentSlot");
-				addImports("com.gwtplatform.mvp.client.presenter.slots.ContentSlot", "com.gwtplatform.mvp.client.Presenter");
+				addImports("com.gwtplatform.mvp.client.presenter.slots.NestedSlot");
 				Type t = fDec.getType();
-				ReferenceType nt = ASTHelper.createReferenceType("ContentSlot<Presenter<?,?>>", 0);
+				ReferenceType nt = ASTHelper.createReferenceType("NestedSlot", 0);
 				if (t instanceof ReferenceType) {
 					ReferenceType rt = (ReferenceType) t;
 					rt.setType(nt);
@@ -233,7 +233,7 @@ public class ContentSlotRewriter extends AbstractReWriter {
 					if (v.getInit() instanceof ObjectCreationExpr) {
 						scope = ((ObjectCreationExpr) v.getInit()).getScope();
 					}
-					v.setInit(new ObjectCreationExpr(scope, new ClassOrInterfaceType("ContentSlot<Presenter<?,?>>"), null));
+					v.setInit(new ObjectCreationExpr(scope, new ClassOrInterfaceType("NestedSlot"), null));
 				}
 			}
 		}

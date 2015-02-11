@@ -141,8 +141,8 @@ public class Upgrader extends JPanel {
 		JPanel panel = new JPanel();
 		panel.setBorder(new TitledBorder("Choose target version"));
 		
-		 v2 = new JRadioButton("GWTP 2.x");
-	     JRadioButton v1 = new JRadioButton("GWTP 1.x");
+		 v2 = new JRadioButton("GWTP 1.5");
+	     JRadioButton v1 = new JRadioButton("GWTP 1.4 and below");
 	     ButtonGroup bG = new ButtonGroup();
 	     
 	     bG.add(v2);
